@@ -110,7 +110,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.store_off,
+                                    Icons.store,
                                     size: 64,
                                     color: Colors.grey[400],
                                   ),

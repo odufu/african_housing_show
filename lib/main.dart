@@ -23,7 +23,7 @@ class AfricanHousingShow extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        fontFamily: 'Roboto',
+        // fontFamily: 'Roboto',
       ),
       initialRoute: '/',
       routes: {

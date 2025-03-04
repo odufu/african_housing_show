@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show sin, cos, sqrt, atan2, pi;
 import '../models/stand_model.dart';
 
 class DataService {
@@ -28,7 +29,7 @@ class DataService {
     return _stands.where((stand) {
       final searchLower = query.toLowerCase();
       return stand.name.toLowerCase().contains(searchLower) ||
-             stand.exhibitorName.toLowerCase().contains(searchLower);
+          stand.exhibitorName.toLowerCase().contains(searchLower);
     }).toList();
   }
 
@@ -67,7 +68,8 @@ class DataService {
   }
 
   // Get nearby stands based on user location
-  Future<List<Stand>> getNearbyStands(double userLat, double userLng, double radiusInMeters) async {
+  Future<List<Stand>> getNearbyStands(
+      double userLat, double userLng, double radiusInMeters) async {
     await Future.delayed(const Duration(milliseconds: 500));
     return _stands.where((stand) {
       final distance = _calculateDistance(
@@ -81,25 +83,24 @@ class DataService {
   }
 
   // Calculate distance between two points using Haversine formula
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
     const double earthRadius = 6371000; // Earth's radius in meters
     final double dLat = _toRadians(lat2 - lat1);
     final double dLon = _toRadians(lon2 - lon1);
-    
-    final double a = (
-      _sin(dLat / 2) * _sin(dLat / 2) +
-      _cos(_toRadians(lat1)) * _cos(_toRadians(lat2)) *
-      _sin(dLon / 2) * _sin(dLon / 2)
-    );
-    
-    final double c = 2 * _atan2(_sqrt(a), _sqrt(1 - a));
+
+    final double a = (sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2));
+
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return earthRadius * c;
   }
 
-  // Helper functions for distance calculation
-  double _toRadians(double degree) => degree * (3.141592653589793 / 180);
-  double _sin(double x) => x.sin();
-  double _cos(double x) => x.cos();
-  double _atan2(double y, double x) => y.atan2(x);
-  double _sqrt(double x) => x.sqrt();
+  // Helper function to convert degrees to radians
+  double _toRadians(double degree) {
+    return degree * (pi / 180);
+  }
 }
