@@ -25,103 +25,153 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadNearbyStands() async {
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
+
     try {
       final position = await _locationService.getCurrentLocation();
+      if (!mounted) return;
+
       if (position != null) {
         final stands = await _dataService.getNearbyStands(
           position.latitude,
           position.longitude,
           1000, // Search within 1km radius
         );
-        setState(() => _nearbyStands = stands);
+        if (!mounted) return;
+
+        setState(() {
+          _nearbyStands = stands;
+          _isLoading = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
       }
     } catch (e) {
-      // Handle error
-    } finally {
+      if (!mounted) return;
       setState(() => _isLoading = false);
+      print('Error loading nearby stands: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'African Housing Show',
-        showBackButton: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.admin_panel_settings),
-            onPressed: () => Navigator.pushNamed(context, '/admin-login'),
+        showBackButton: false, // This will show the admin login button
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadNearbyStands,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome Section
+                const Text(
+                  'Welcome to\nAfrican Housing Show',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Explore exhibition stands using AR navigation',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Action Buttons
+                ModernButton(
+                  text: 'Find Stands',
+                  icon: Icons.search,
+                  onPressed: () {
+                    final bottomNavBar = context
+                        .findAncestorWidgetOfExactType<BottomNavigationBar>();
+                    if (bottomNavBar != null) {
+                      bottomNavBar.onTap!(1); // Navigate to search tab
+                    }
+                  },
+                  isFullWidth: true,
+                ),
+                const SizedBox(height: 16),
+                ModernOutlinedButton(
+                  text: 'Start AR Navigation',
+                  icon: Icons.view_in_ar,
+                  onPressed: () {
+                    final bottomNavBar = context
+                        .findAncestorWidgetOfExactType<BottomNavigationBar>();
+                    if (bottomNavBar != null) {
+                      bottomNavBar.onTap!(2); // Navigate to AR tab
+                    }
+                  },
+                  isFullWidth: true,
+                ),
+                const SizedBox(height: 32),
+
+                // Nearby Stands Section
+                const Text(
+                  'Nearby Stands',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _nearbyStands.isEmpty
+                        ? _buildEmptyState()
+                        : Column(
+                            children: _nearbyStands
+                                .map((stand) => _buildStandCard(stand))
+                                .toList(),
+                          ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.location_off,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No nearby stands found',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try moving closer to the exhibition area',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
           ),
         ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Search Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Find Exhibition Stands',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ModernButton(
-                    text: 'Search Stands',
-                    icon: Icons.search,
-                    onPressed: () => Navigator.pushNamed(context, '/stands'),
-                    isFullWidth: true,
-                  ),
-                  const SizedBox(height: 12),
-                  ModernOutlinedButton(
-                    text: 'Start AR Navigation',
-                    icon: Icons.view_in_ar,
-                    onPressed: () => Navigator.pushNamed(context, '/ar-navigation'),
-                    isFullWidth: true,
-                  ),
-                ],
-              ),
-            ),
-            // Nearby Stands Section
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _nearbyStands.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No nearby stands found',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _nearbyStands.length,
-                          itemBuilder: (context, index) {
-                            final stand = _nearbyStands[index];
-                            return _buildStandCard(stand);
-                          },
-                        ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -142,53 +192,48 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(15),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.store,
+                  size: 30,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stand.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.store,
-                      size: 30,
-                      color: Theme.of(context).primaryColor,
+                    const SizedBox(height: 4),
+                    Text(
+                      stand.exhibitorName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stand.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          stand.exhibitorName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey[400],
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey[400],
               ),
             ],
           ),

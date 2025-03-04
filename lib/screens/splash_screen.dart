@@ -11,17 +11,19 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   final LocationService _locationService = LocationService();
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 5),
       vsync: this,
     );
 
@@ -44,40 +46,57 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _checkPermissionsAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 2));
-
     if (!mounted) return;
+    setState(() => _isLoading = true);
 
-    // Check location services
-    final serviceEnabled = await _locationService.isLocationServiceEnabled();
-    if (!serviceEnabled) {
+    try {
+      // Check location services
+      final serviceEnabled = await _locationService.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        await ErrorDialog.show(
+          context: context,
+          title: 'Location Services Disabled',
+          message: 'Please enable location services to use the app.',
+          buttonText: 'OK',
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Request location permission
+      final permission = await _locationService.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        await ErrorDialog.show(
+          context: context,
+          title: 'Location Permission Required',
+          message:
+              'This app needs location permission to guide you through the exhibition.',
+          buttonText: 'OK',
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Add a delay to show the splash screen
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Navigate to main screen
       if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/main');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
       await ErrorDialog.show(
         context: context,
-        title: 'Location Services Disabled',
-        message: 'Please enable location services to use the app.',
-        buttonText: 'OK',
+        title: 'Error',
+        message: 'Failed to initialize app: $e',
+        buttonText: 'Retry',
       );
-      return;
+      _checkPermissionsAndNavigate();
     }
-
-    // Request location permission
-    final permission = await _locationService.requestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
-      await ErrorDialog.show(
-        context: context,
-        title: 'Location Permission Required',
-        message: 'This app needs location permission to guide you through the exhibition.',
-        buttonText: 'OK',
-      );
-      return;
-    }
-
-    // Navigate to home screen
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override
@@ -90,53 +109,80 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).primaryColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo or Icon
-                    Icon(
-                      Icons.location_on,
-                      size: 100,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(height: 24),
-                    // App Title
-                    const Text(
-                      'African Housing Show',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Column(
+                          children: [
+                            // Logo or Icon
+                            Icon(
+                              Icons.location_on,
+                              size: 100,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 24),
+                            // App Title
+                            const Text(
+                              'African Housing Show',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // Subtitle
+                            const Text(
+                              'AR Navigation Guide',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    // Subtitle
-                    const Text(
-                      'AR Navigation Guide',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 18,
+                    if (_isLoading) ...[
+                      const SizedBox(height: 48),
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.white.withOpacity(0.8),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 48),
-            // Loading indicator
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Colors.white.withOpacity(0.8),
+              // Admin Login Button at bottom
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24.0),
+                child: TextButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () => Navigator.pushReplacementNamed(
+                          context, '/admin-login'),
+                  child: const Text(
+                    'Admin Login',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

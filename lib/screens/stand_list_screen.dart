@@ -17,6 +17,7 @@ class _StandListScreenState extends State<StandListScreen> {
   List<Stand> _filteredStands = [];
   bool _isLoading = true;
   Timer? _debounce;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,32 +28,48 @@ class _StandListScreenState extends State<StandListScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadStands() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final stands = await _dataService.getAllStands();
+      if (!mounted) return;
+
       setState(() {
         _stands = stands;
         _filteredStands = stands;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
       // Handle error
+      print('Error loading stands: $e');
     }
   }
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+
       setState(() {
         _filteredStands = _stands.where((stand) {
           final searchLower = query.toLowerCase();
           return stand.name.toLowerCase().contains(searchLower) ||
-                 stand.exhibitorName.toLowerCase().contains(searchLower) ||
-                 stand.description.toLowerCase().contains(searchLower);
+              stand.exhibitorName.toLowerCase().contains(searchLower) ||
+              stand.description.toLowerCase().contains(searchLower);
         }).toList();
       });
     });
@@ -61,12 +78,37 @@ class _StandListScreenState extends State<StandListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: SearchAppBar(
-        onSearch: _onSearchChanged,
+      appBar: CustomAppBar(
+        title: 'Exhibition Stands',
+        showBackButton: false,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildStandsList(),
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search stands...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: _onSearchChanged,
+            ),
+          ),
+          // Stands List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildStandsList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -94,13 +136,16 @@ class _StandListScreenState extends State<StandListScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _filteredStands.length,
-      itemBuilder: (context, index) {
-        final stand = _filteredStands[index];
-        return _buildStandCard(stand);
-      },
+    return RefreshIndicator(
+      onRefresh: _loadStands,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _filteredStands.length,
+        itemBuilder: (context, index) {
+          final stand = _filteredStands[index];
+          return _buildStandCard(stand);
+        },
+      ),
     );
   }
 

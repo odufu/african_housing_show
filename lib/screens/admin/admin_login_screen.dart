@@ -36,7 +36,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     if (_usernameController.text == 'admin' &&
         _passwordController.text == 'password') {
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/admin-home');
+      Navigator.pushReplacementNamed(context, '/main-admin');
     } else {
       if (!mounted) return;
       await ErrorDialog.show(
@@ -129,6 +129,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   onPressed: _handleLogin,
                   isLoading: _isLoading,
                   isFullWidth: true,
+                ),
+                const SizedBox(height: 20),
+                // Back to Visitor Mode
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, '/main'),
+                  child: const Text('Continue as Visitor'),
                 ),
                 const SizedBox(height: 20),
                 // Help Text

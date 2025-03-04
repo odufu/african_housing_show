@@ -23,14 +23,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Future<void> _loadStands() async {
+    if (!mounted) return;
+
+    setState(() => _isLoading = true);
+
     try {
       final stands = await _dataService.getAllStands();
+      if (!mounted) return;
+
       setState(() {
         _stands = stands;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
+      print('Error loading stands: $e');
     }
   }
 
@@ -40,105 +48,83 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       appBar: CustomAppBar(
         title: 'Admin Dashboard',
         showBackButton: false,
-        actions: [
+        additionalActions: [
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => Navigator.pushReplacementNamed(context, '/'),
+            tooltip: 'Logout',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadStands,
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Stats Cards
-                          Row(
-                            children: [
-                              _buildStatCard(
-                                'Total Stands',
-                                _stands.length.toString(),
-                                Icons.store,
-                                Colors.blue,
-                              ),
-                              const SizedBox(width: 16),
-                              _buildStatCard(
-                                'Active Exhibitors',
-                                _stands.length.toString(),
-                                Icons.people,
-                                Colors.green,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          // Action Buttons
-                          ModernButton(
-                            text: 'Allocate New Stand',
-                            icon: Icons.add_business,
-                            onPressed: () => Navigator.pushNamed(
-                              context,
-                              '/stand-allocation',
-                            ),
-                            isFullWidth: true,
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Manage Stands',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+      body: RefreshIndicator(
+        onRefresh: _loadStands,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Stats Cards
+                Row(
+                  children: [
+                    _buildStatCard(
+                      'Total Stands',
+                      _stands.length.toString(),
+                      Icons.store,
+                      Colors.blue,
                     ),
+                    const SizedBox(width: 16),
+                    _buildStatCard(
+                      'Active Exhibitors',
+                      _stands
+                          .where((s) => s.exhibitorName.isNotEmpty)
+                          .length
+                          .toString(),
+                      Icons.people,
+                      Colors.green,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Action Buttons
+                ModernButton(
+                  text: 'Allocate New Stand',
+                  icon: Icons.add_business,
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    '/stand-allocation',
                   ),
-                  // Stands List
-                  SliverPadding(
-                    padding: const EdgeInsets.all(16),
-                    sliver: _stands.isEmpty
-                        ? SliverToBoxAdapter(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.store,
-                                    size: 64,
-                                    color: Colors.grey[400],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No stands allocated yet',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final stand = _stands[index];
-                                return _buildStandCard(stand);
-                              },
-                              childCount: _stands.length,
-                            ),
+                  isFullWidth: true,
+                ),
+                const SizedBox(height: 24),
+
+                // Stands List Header
+                const Text(
+                  'Manage Stands',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Stands List
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _stands.isEmpty
+                        ? _buildEmptyState()
+                        : Column(
+                            children: _stands
+                                .map((stand) => _buildStandCard(stand))
+                                .toList(),
                           ),
-                  ),
-                ],
-              ),
+              ],
             ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -180,6 +166,37 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.store,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No stands allocated yet',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Add stands using the button above',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
       ),
     );
   }
